@@ -1,6 +1,6 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="sdfp-photo-api" type="Python.FastAPI">
-    <option name="file" value="$PROJECT_DIR$/main.py" />
+    <option name="file" value="$PROJECT_DIR$/app/main.py" />
     <module name="sdfp-photo-api" />
     <option name="INTERPRETER_OPTIONS" value="" />
     <option name="PARENT_ENVS" value="true" />

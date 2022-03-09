@@ -3,7 +3,7 @@ import datetime
 from sqlalchemy import desc
 from sqlalchemy.orm import Session
 
-import models
+from app import models
 
 
 def get_latest_photo_info(db: Session, camera_ID: str):

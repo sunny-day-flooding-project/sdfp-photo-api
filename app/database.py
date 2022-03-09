@@ -1,5 +1,5 @@
 import os
-import environment_vars
+from app import environment_vars
 
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base

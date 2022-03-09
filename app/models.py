@@ -1,9 +1,9 @@
 from sqlalchemy import Boolean, Column, String, Float, DateTime
 
-from database import Base
+from app import database
 
 
-class photo_info_model(Base):
+class photo_info_model(database.Base):
     __tablename__ = "photo_info"
 
     drive_filename = Column(String, primary_key=True, index=True)

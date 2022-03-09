@@ -2,14 +2,16 @@ from __future__ import print_function
 import os
 import exifread
 import json
-import models
-import environment_vars
 import secrets
 import arrow
 
+from app import models
+from app import environment_vars
+from app import database #import SessionLocal, engine
+
 from googleapiclient.http import MediaFileUpload
 from starlette.staticfiles import StaticFiles
-from db_functions import get_latest_photo_info, write_photo_info
+from .db_functions import get_latest_photo_info, write_photo_info
 from PIL import Image
 from fastapi import FastAPI, File, UploadFile, Form, Depends, HTTPException, status
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
@@ -17,11 +19,10 @@ from datetime import datetime
 from sqlalchemy.orm import Session
 from dateutil import tz
 from googleapiclient.discovery import build
-from database import SessionLocal, engine
 from oauth2client.service_account import ServiceAccountCredentials
 
 
-models.Base.metadata.create_all(bind=engine)
+models.database.Base.metadata.create_all(bind=database.engine)
 
 environment_vars.set_env_vars()
 
@@ -29,7 +30,7 @@ app = FastAPI()
 
 security = HTTPBasic()
 
-app.mount("/public", StaticFiles(directory="smaller_pictures"), name="smaller_pictures")
+app.mount("/public", StaticFiles(directory="app/smaller_pictures"), name="smaller_pictures")
 
 json_secret = json.loads(os.environ.get('GOOGLE_JSON_KEY'))
 google_drive_folder_id = os.environ.get('GOOGLE_DRIVE_FOLDER_ID')
@@ -45,7 +46,7 @@ drive = build('drive', 'v3', credentials=credentials)
 
 # Dependency
 def get_db():
-    db = SessionLocal()
+    db = database.SessionLocal()
     try:
         yield db
     finally:
@@ -75,7 +76,7 @@ async def _file_upload(
             headers={"WWW-Authenticate": "Basic"},
         )
 
-    original_pic_path = os.getcwd() + "/original_pictures/" + camera_ID + ".jpg"
+    original_pic_path = os.getcwd() + "/app/original_pictures/" + camera_ID + ".jpg"
 
     # SAVE FILE ORIGINAL
     with open(original_pic_path, "wb") as myfile:
@@ -93,7 +94,7 @@ async def _file_upload(
 
     img = Image.open(original_pic_path)
     img.thumbnail(size=(1000, 750))
-    img.save("smaller_pictures/" + camera_ID + ".jpg")
+    img.save("app/smaller_pictures/" + camera_ID + ".jpg")
     img.close()
 
 
