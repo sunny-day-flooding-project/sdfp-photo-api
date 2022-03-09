@@ -6,7 +6,7 @@ import secrets
 import arrow
 
 from app import models
-from app import environment_vars
+# from app import environment_vars
 from app import database #import SessionLocal, engine
 
 from googleapiclient.http import MediaFileUpload
@@ -24,7 +24,7 @@ from oauth2client.service_account import ServiceAccountCredentials
 
 models.database.Base.metadata.create_all(bind=database.engine)
 
-environment_vars.set_env_vars()
+# environment_vars.set_env_vars()
 
 app = FastAPI()
 
