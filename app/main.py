@@ -33,13 +33,11 @@ security = HTTPBasic()
 app.mount("/public", StaticFiles(directory="app/smaller_pictures"), name="smaller_pictures")
 
 json_secret = json.loads(os.environ.get('GOOGLE_JSON_KEY'))
-print(json_secret)
 google_drive_folder_id = os.environ.get('GOOGLE_DRIVE_FOLDER_ID')
 
 scope = ["https://www.googleapis.com/auth/drive"]
 
-credentials = ServiceAccountCredentials.from_json_keyfile_dict(
-    json_secret, scopes=scope)
+credentials = ServiceAccountCredentials.from_json_keyfile_dict(keyfile_dict=json_secret, scopes=scope)
 
 # setup the google drive stance and sign in
 drive = build('drive', 'v3', credentials=credentials)
