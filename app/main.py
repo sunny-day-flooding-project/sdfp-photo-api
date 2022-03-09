@@ -75,7 +75,7 @@ async def _file_upload(
             headers={"WWW-Authenticate": "Basic"},
         )
 
-    original_pic_path = os.getcwd() + "/app/original_pictures/" + camera_ID + ".jpg"
+    original_pic_path = "/photo_storage/highres_" + camera_ID + ".jpg"
 
     # SAVE FILE ORIGINAL
     with open(original_pic_path, "wb") as myfile:
@@ -93,7 +93,7 @@ async def _file_upload(
 
     img = Image.open(original_pic_path)
     img.thumbnail(size=(1000, 750))
-    img.save("app/smaller_pictures/" + camera_ID + ".jpg")
+    img.save("/photo_storage/" + camera_ID + ".jpg")
     img.close()
 
 
