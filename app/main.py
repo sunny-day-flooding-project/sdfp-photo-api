@@ -7,7 +7,7 @@ import arrow
 
 from app import models
 # from app import environment_vars
-from app import database #import SessionLocal, engine
+from app import database
 
 from googleapiclient.http import MediaFileUpload
 from starlette.staticfiles import StaticFiles
@@ -33,6 +33,7 @@ security = HTTPBasic()
 app.mount("/public", StaticFiles(directory="app/smaller_pictures"), name="smaller_pictures")
 
 json_secret = json.loads(os.environ.get('GOOGLE_JSON_KEY'))
+print(json_secret)
 google_drive_folder_id = os.environ.get('GOOGLE_DRIVE_FOLDER_ID')
 
 scope = ["https://www.googleapis.com/auth/drive"]
