@@ -30,7 +30,7 @@ app = FastAPI()
 
 security = HTTPBasic()
 
-app.mount("/public", StaticFiles(directory="photo_storage"), name="photo_storage")
+app.mount("/public", StaticFiles(directory="/photo_storage"), name="photo_storage")
 
 json_secret = json.loads(os.environ.get('GOOGLE_JSON_KEY'))
 google_drive_folder_id = os.environ.get('GOOGLE_DRIVE_FOLDER_ID')
