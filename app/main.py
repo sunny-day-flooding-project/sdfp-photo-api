@@ -21,7 +21,6 @@ from dateutil import tz
 from googleapiclient.discovery import build
 from oauth2client.service_account import ServiceAccountCredentials
 
-
 models.database.Base.metadata.create_all(bind=database.engine)
 
 # environment_vars.set_env_vars()
@@ -86,7 +85,8 @@ async def _file_upload(
     img_for_exif = open(original_pic_path, 'rb')
     tags = exifread.process_file(img_for_exif)
 
-    datetime_original_arrow = arrow.get(datetime.strptime(str(tags['EXIF DateTimeOriginal']), "%Y:%m:%d %H:%M:%S"), tz.gettz(timezone)).to('utc')
+    datetime_original_arrow = arrow.get(datetime.strptime(str(tags['EXIF DateTimeOriginal']), "%Y:%m:%d %H:%M:%S"),
+                                        tz.gettz(timezone)).to('utc')
 
     picture_label = camera_ID + "_" + datetime_original_arrow.format("YYYYMMDDHHmmss") + ".jpg"
     date_label = datetime_original_arrow.format("YYYY-MM-DD")
@@ -96,24 +96,23 @@ async def _file_upload(
     img.save("/photo_storage/" + camera_ID + ".jpg")
     img.close()
 
-
     # Find the ID of the "Images" main folder so we can make a new
     # folder for the camera_ID, if needed
     images_folder_id = drive.files().list(
-        corpora = "drive",
-        driveId = google_drive_folder_id,
-        includeItemsFromAllDrives = True,
-        supportsAllDrives = True,
-        q = "name='Images' and mimeType='application/vnd.google-apps.folder'"
+        corpora="drive",
+        driveId=google_drive_folder_id,
+        includeItemsFromAllDrives=True,
+        supportsAllDrives=True,
+        q="name='Images' and mimeType='application/vnd.google-apps.folder'"
     ).execute().get('files')[0].get('id')
 
     # Search for the camera's folder within
     camera_image_folder_info = drive.files().list(
-        corpora = "drive",
-        driveId = google_drive_folder_id,
-        includeItemsFromAllDrives = True,
-        supportsAllDrives = True,
-        q = "name='"+camera_ID+"' and mimeType='application/vnd.google-apps.folder' and '"+images_folder_id+"' in parents and trashed = false"
+        corpora="drive",
+        driveId=google_drive_folder_id,
+        includeItemsFromAllDrives=True,
+        supportsAllDrives=True,
+        q="name='" + camera_ID + "' and mimeType='application/vnd.google-apps.folder' and '" + images_folder_id + "' in parents and trashed = false"
     ).execute().get('files', [])
 
     # If the camera's folder exists, get the ID
@@ -139,7 +138,7 @@ async def _file_upload(
         driveId=google_drive_folder_id,
         includeItemsFromAllDrives=True,
         supportsAllDrives=True,
-        q= "'" + camera_image_folder_id + "'" + " in parents and trashed = false and name='" + date_label + "' and mimeType='application/vnd.google-apps.folder'"
+        q="'" + camera_image_folder_id + "'" + " in parents and trashed = false and name='" + date_label + "' and mimeType='application/vnd.google-apps.folder'"
     ).execute().get('files', [])
 
     # If there is a folder for the date within the camera's folder, get the ID
@@ -174,7 +173,6 @@ async def _file_upload(
 
     # If there is NOT a picture by that name, write one
     if len(picture_info) == 0:
-
         file_metadata = {
             'name': [picture_label],
             'parents': [date_folder_id]
@@ -187,9 +185,8 @@ async def _file_upload(
                                     media_body=media,
                                     supportsAllDrives=True).execute()
 
-
     write_photo_info(
-        db = db,
+        db=db,
         drive_filename=picture_label,
         camera_ID=camera_ID,
         SourceFile="none",
@@ -203,8 +200,7 @@ async def _file_upload(
 
     os.remove(original_pic_path)
 
-    return {picture_label + " was processed!"}
-
+    return {"SUCCESS!"}
 
 
 @app.get('/get_latest_picture_info')
