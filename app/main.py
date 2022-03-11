@@ -6,7 +6,6 @@ import secrets
 import arrow
 
 from app import models
-# from app import environment_vars
 from app import database
 
 from googleapiclient.http import MediaFileUpload
@@ -23,6 +22,7 @@ from oauth2client.service_account import ServiceAccountCredentials
 
 models.database.Base.metadata.create_all(bind=database.engine)
 
+# from app import environment_vars
 # environment_vars.set_env_vars()
 
 app = FastAPI()
@@ -43,7 +43,7 @@ drive = build('drive', 'v3', credentials=credentials)
 
 
 # Dependency
-def get_db():
+async def get_db():
     db = database.SessionLocal()
     try:
         yield db
