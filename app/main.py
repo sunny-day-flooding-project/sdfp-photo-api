@@ -5,8 +5,7 @@ import json
 import secrets
 import arrow
 
-from app import models
-from app import database
+from app import models, database
 
 from googleapiclient.http import MediaFileUpload
 from starlette.staticfiles import StaticFiles
@@ -43,7 +42,7 @@ drive = build('drive', 'v3', credentials=credentials)
 
 
 # Dependency
-async def get_db():
+def get_db():
     db = database.SessionLocal()
     try:
         yield db
@@ -52,12 +51,12 @@ async def get_db():
 
 
 @app.get("/")
-async def root():
+def root():
     return {"message": "Hello World"}
 
 
 @app.post('/upload_picture')
-async def _file_upload(
+def _file_upload(
         file: UploadFile = File(...),
         camera_ID: str = Form(...),
         timezone: str = Form("EST"),
@@ -78,7 +77,7 @@ async def _file_upload(
 
     # SAVE FILE ORIGINAL
     with open(original_pic_path, "wb") as myfile:
-        content = await file.read()
+        content = file.read()
         myfile.write(content)
         myfile.close()
 
@@ -204,7 +203,7 @@ async def _file_upload(
 
 
 @app.get('/get_latest_picture_info')
-async def get_latest_picture_info(
+def get_latest_picture_info(
         camera_ID: str,
         db: Session = Depends(get_db),
         credentials: HTTPBasicCredentials = Depends(security)
