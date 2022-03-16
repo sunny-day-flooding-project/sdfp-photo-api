@@ -74,12 +74,13 @@ def _file_upload(
         )
 
     original_pic_path = "/photo_storage/highres_" + camera_ID + ".jpg"
+    # original_pic_path = "app/original_pictures/highres_" + camera_ID + ".jpg"
 
     # SAVE FILE ORIGINAL
-    myfile = open(original_pic_path, "wb")
-    content = file.read()
-    myfile.write(content)
-    myfile.close()
+    with open(original_pic_path, "wb") as myfile:
+        content = file.file.read()
+        myfile.write(content)
+        myfile.close()
 
     img_for_exif = open(original_pic_path, 'rb')
     tags = exifread.process_file(img_for_exif)
@@ -93,6 +94,7 @@ def _file_upload(
     img = Image.open(original_pic_path)
     img.thumbnail(size=(1000, 750))
     img.save("/photo_storage/" + camera_ID + ".jpg")
+    # img.save("app/smaller_pictures/" + camera_ID + ".jpg")
     img.close()
 
     # Find the ID of the "Images" main folder so we can make a new
