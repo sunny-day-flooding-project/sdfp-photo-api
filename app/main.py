@@ -76,10 +76,10 @@ def _file_upload(
     original_pic_path = "/photo_storage/highres_" + camera_ID + ".jpg"
 
     # SAVE FILE ORIGINAL
-    with open(original_pic_path, "wb") as myfile:
-        content = file.read()
-        myfile.write(content)
-        myfile.close()
+    myfile = open(original_pic_path, "wb")
+    content = file.read()
+    myfile.write(content)
+    myfile.close()
 
     img_for_exif = open(original_pic_path, 'rb')
     tags = exifread.process_file(img_for_exif)
