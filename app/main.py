@@ -51,12 +51,12 @@ def get_db():
 
 
 @app.get("/")
-def root():
+async def root():
     return {"message": "Hello World"}
 
 
 @app.post('/upload_picture')
-def _file_upload(
+async def _file_upload(
         file: UploadFile = File(...),
         camera_ID: str = Form(...),
         timezone: str = Form("EST"),
@@ -78,7 +78,7 @@ def _file_upload(
 
     # SAVE FILE ORIGINAL
     with open(original_pic_path, "wb") as myfile:
-        content = file.file.read()
+        content = await file.read()
         myfile.write(content)
         myfile.close()
 
