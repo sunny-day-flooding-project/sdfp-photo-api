@@ -195,7 +195,7 @@ async def _file_upload(
         SourceFile="none",
         FileName="none",
         FileSize=os.path.getsize(original_pic_path),
-        DateTimeOriginal=str(tags['EXIF DateTimeOriginal']),
+        DateTimeOriginal=datetime_string,
         original_tz=timezone,
         DateTimeOriginalUTC=datetime_original_arrow.datetime,
         high_water=False
