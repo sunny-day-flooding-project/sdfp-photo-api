@@ -85,7 +85,9 @@ async def _file_upload(
     img_for_exif = open(original_pic_path, 'rb')
     tags = exifread.process_file(img_for_exif)
 
-    datetime_original_arrow = arrow.get(datetime.strptime(str(tags['Image DateTime']), "%Y:%m:%d %H:%M:%S"),
+    datetime_string = [str(value) for key, value in tags.items() if 'DateTime' in key][0]
+
+    datetime_original_arrow = arrow.get(datetime.strptime(datetime_string, "%Y:%m:%d %H:%M:%S"),
                                         tz.gettz(timezone)).to('utc')
 
     picture_label = camera_ID + "_" + datetime_original_arrow.format("YYYYMMDDHHmmss") + ".jpg"
