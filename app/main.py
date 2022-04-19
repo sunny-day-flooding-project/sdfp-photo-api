@@ -93,10 +93,15 @@ async def _file_upload(
     picture_label = camera_ID + "_" + datetime_original_arrow.format("YYYYMMDDHHmmss") + ".jpg"
     date_label = datetime_original_arrow.format("YYYY-MM-DD")
 
-    img = Image.open(original_pic_path)
+    try:
+        img = Image.open(original_pic_path)
+    except OSError:
+        return "Error opening image. Image is corrupt"
+    except:
+        return "Error opening image. Unknown error"
+
     img.thumbnail(size=(1000, 750))
     img.save("/photo_storage/" + camera_ID + ".jpg")
-    # img.save("app/smaller_pictures/" + camera_ID + ".jpg")
     img.close()
 
     # Find the ID of the "Images" main folder so we can make a new
