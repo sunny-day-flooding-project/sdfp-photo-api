@@ -15,6 +15,34 @@ def get_photo_info(db: Session, drive_filename: str):
     return db.query(models.photo_info_model).filter(models.photo_info_model.drive_filename == drive_filename).first()
 
 
+def add_camera(db: Session,
+               place: str,
+               camera_ID: str,
+               lng: float,
+               lat: float
+                     ):
+    camera_in_db = db.query(models.camera_locations_model).filter(models.camera_locations_model.camera_ID == camera_ID).all()
+
+    camera_exists = len(camera_in_db) > 0
+
+    if(camera_exists == True):
+        return "Camera already exists!"
+
+    if(camera_exists == False):
+
+        new_camera = models.camera_locations_model(
+            place=place,
+            camera_ID=camera_ID,
+            lng=lng,
+            lat=lat
+        )
+
+        db.add(new_camera)
+        db.commit()
+        db.refresh(new_camera)
+
+        return "SUCCESS! New camera added"
+
 def write_photo_info(db: Session,
                      drive_filename: str,
                      camera_ID: str,

@@ -17,3 +17,10 @@ class photo_info_model(database.Base):
     high_water = Column(Boolean, index=True)
 
 
+class camera_locations_model(database.Base):
+    __tablename__ = "camera_locations"
+
+    place = Column(String, primary_key=True, index=True)
+    camera_ID = Column(String, primary_key=True,index=True)
+    lng = Column(Float, index=True)
+    lat = Column(Float, index=True)

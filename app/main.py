@@ -9,7 +9,7 @@ from app import models, database
 
 from googleapiclient.http import MediaFileUpload
 from starlette.staticfiles import StaticFiles
-from .db_functions import get_latest_photo_info, write_photo_info
+from .db_functions import get_latest_photo_info, write_photo_info, add_camera
 from PIL import Image
 from fastapi import FastAPI, File, UploadFile, Form, Depends, HTTPException, status
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
@@ -52,7 +52,7 @@ def get_db():
 
 @app.get("/")
 async def root():
-    return {"message": "Hello World"}
+    return {"message": "Hello there! Navigate to https://photos-sunnydayflood.apps.cloudapps.unc.edu/docs to view the documentation for this API"}
 
 
 @app.post('/upload_picture')
@@ -231,4 +231,30 @@ def get_latest_picture_info(
 
     return {
         some_photo_info
+    }
+
+
+@app.get('/add_camera')
+def add_camera_site(
+        place: str,
+        camera_ID: str,
+        lng: float,
+        lat: float,
+        db: Session = Depends(get_db),
+        credentials: HTTPBasicCredentials = Depends(security)
+):
+    correct_username = secrets.compare_digest(credentials.username, os.environ.get('username'))
+    correct_password = secrets.compare_digest(credentials.password, os.environ.get('password'))
+
+    if not (correct_username and correct_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password",
+            headers={"WWW-Authenticate": "Basic"},
+        )
+
+    camera_info = add_camera(db=db, place=place, camera_ID=camera_ID, lng=lng, lat=lat)
+
+    return {
+        camera_info
     }
