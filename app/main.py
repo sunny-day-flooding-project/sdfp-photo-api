@@ -234,7 +234,7 @@ def get_latest_picture_info(
     }
 
 
-@app.get('/add_camera')
+@app.post('/add_camera')
 def add_camera_site(
         place: str,
         camera_ID: str,
