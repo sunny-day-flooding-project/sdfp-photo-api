@@ -15,6 +15,15 @@ def get_photo_info(db: Session, drive_filename: str):
     return db.query(models.photo_info_model).filter(models.photo_info_model.drive_filename == drive_filename).first()
 
 
+def get_camera(db: Session, camera_ID: str):
+    return db.query(models.camera_locations_model).filter(models.camera_locations_model.camera_ID == camera_ID).all()
+
+
+def get_all_cameras(db: Session):
+    return db.query(models.camera_locations_model).order_by(
+        desc('camera_ID')).all()
+
+
 def add_camera(db: Session,
                place: str,
                camera_ID: str,

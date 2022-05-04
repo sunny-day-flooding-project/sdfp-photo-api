@@ -5,13 +5,12 @@ import json
 import secrets
 import arrow
 
-from app import models, database
+from app import models, database, db_functions
 
 from googleapiclient.http import MediaFileUpload
 from starlette.staticfiles import StaticFiles
-from .db_functions import get_latest_photo_info, write_photo_info, add_camera
 from PIL import Image
-from fastapi import FastAPI, File, UploadFile, Form, Depends, HTTPException, status
+from fastapi import FastAPI, File, UploadFile, Form, Depends, HTTPException, status, Query
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from datetime import datetime
 from sqlalchemy.orm import Session
@@ -24,7 +23,30 @@ models.database.Base.metadata.create_all(bind=database.engine)
 # from app import environment_vars
 # environment_vars.set_env_vars()
 
-app = FastAPI()
+description = """
+Sunny Day Flooding Project Photo API lets you:
+
+* **Upload pictures**
+* **Get info about latest pictures**
+* **Add new camera sites**
+* **View existing camera sites**
+"""
+
+app = FastAPI(
+    title="Sunny Day Flooding Project Photo API",
+    description=description,
+    version="0.1.1",
+    # terms_of_service="http://example.com/terms/",
+    contact={
+        "name": "Adam Gold",
+        "url": "https://tarheels.live/sunnydayflood/people/",
+        "email": "gold@unc.edu",
+    },
+    license_info={
+        "name": "GNU General Public License v3.0",
+        "url": "https://www.gnu.org/licenses/gpl-3.0.en.html",
+    },
+)
 
 security = HTTPBasic()
 
@@ -58,7 +80,7 @@ async def root():
 @app.post('/upload_picture')
 async def _file_upload(
         file: UploadFile = File(...),
-        camera_ID: str = Form(...),
+        camera_ID: str = Form(..., example="CAM_BF_01"),
         timezone: str = Form("EST"),
         db: Session = Depends(get_db),
         credentials: HTTPBasicCredentials = Depends(security)
@@ -193,7 +215,7 @@ async def _file_upload(
                                     media_body=media,
                                     supportsAllDrives=True).execute()
 
-    write_photo_info(
+    db_functions.write_photo_info(
         db=db,
         drive_filename=picture_label,
         camera_ID=camera_ID,
@@ -213,7 +235,7 @@ async def _file_upload(
 
 @app.get('/get_latest_picture_info')
 def get_latest_picture_info(
-        camera_ID: str,
+        camera_ID: str = Query(..., description="Example: CAM_BF_01"),
         db: Session = Depends(get_db),
         credentials: HTTPBasicCredentials = Depends(security)
 ):
@@ -227,19 +249,19 @@ def get_latest_picture_info(
             headers={"WWW-Authenticate": "Basic"},
         )
 
-    some_photo_info = get_latest_photo_info(db=db, camera_ID=camera_ID)
+    some_photo_info = db_functions.get_latest_photo_info(db=db, camera_ID=camera_ID)
 
     return {
         some_photo_info
     }
 
 
-@app.post('/add_camera')
-def add_camera_site(
-        place: str,
-        camera_ID: str,
-        lng: float,
-        lat: float,
+@app.post('/write_camera')
+def add_a_new_camera_site(
+        place: str = Query(..., description="Example: Beaufort, North Carolina"),
+        camera_ID: str = Query(..., description="Example: CAM_BF_01"),
+        lng: float = Query(..., description="Example: -76.3"),
+        lat: float = Query(..., description="Example: 34.1"),
         db: Session = Depends(get_db),
         credentials: HTTPBasicCredentials = Depends(security)
 ):
@@ -253,8 +275,35 @@ def add_camera_site(
             headers={"WWW-Authenticate": "Basic"},
         )
 
-    camera_info = add_camera(db=db, place=place, camera_ID=camera_ID, lng=lng, lat=lat)
+    camera_info = db_functions.add_camera(db=db, place=place, camera_ID=camera_ID, lng=lng, lat=lat)
 
     return {
         camera_info
     }
+
+
+@app.get('/get_cameras')
+def get_cameras(
+        camera_ID: str = Query("all", description="Example: CAM_BF_01"),
+        db: Session = Depends(get_db),
+        credentials: HTTPBasicCredentials = Depends(security)
+):
+    correct_username = secrets.compare_digest(credentials.username, os.environ.get('username'))
+    correct_password = secrets.compare_digest(credentials.password, os.environ.get('password'))
+
+    if not (correct_username and correct_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password",
+            headers={"WWW-Authenticate": "Basic"},
+        )
+
+    if camera_ID == "all":
+        return db_functions.get_all_cameras(
+            db=db
+        )
+
+    return db_functions.get_camera(
+        db=db,
+        camera_ID=camera_ID
+    )
