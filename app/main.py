@@ -5,7 +5,7 @@ import json
 import secrets
 import arrow
 
-from app import models, database, db_functions
+from app import models, database, db_functions, blurring_functions
 
 from googleapiclient.http import MediaFileUpload
 from starlette.staticfiles import StaticFiles
@@ -123,7 +123,8 @@ async def _file_upload(
         return "Error opening image. Unknown error"
 
     img.thumbnail(size=(1000, 750))
-    img.save("/photo_storage/" + camera_ID + ".jpg")
+    reduced_image_path = "/photo_storage/" + camera_ID + ".jpg"
+    img.save(reduced_image_path)
     img.close()
 
     # Find the ID of the "Images" main folder so we can make a new
@@ -228,6 +229,7 @@ async def _file_upload(
         high_water=False
     )
 
+    blurring_functions.blur_image(camera_ID.replace("CAM_", ""), reduced_image_path)
     os.remove(original_pic_path)
 
     return {"SUCCESS!"}
