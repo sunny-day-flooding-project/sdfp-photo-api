@@ -28,7 +28,9 @@ def add_camera(db: Session,
                place: str,
                camera_ID: str,
                lng: float,
-               lat: float
+               lat: float,
+               camera_label: str,
+               sensor_ID: str
                      ):
     camera_in_db = db.query(models.camera_locations_model).filter(models.camera_locations_model.camera_ID == camera_ID).all()
 
@@ -43,7 +45,9 @@ def add_camera(db: Session,
             place=place,
             camera_ID=camera_ID,
             lng=lng,
-            lat=lat
+            lat=lat,
+            camera_label=camera_label,
+            sensor_ID=sensor_ID
         )
 
         db.add(new_camera)

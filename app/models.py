@@ -24,3 +24,5 @@ class camera_locations_model(database.Base):
     camera_ID = Column(String, primary_key=True,index=True)
     lng = Column(Float, index=True)
     lat = Column(Float, index=True)
+    camera_label = Column(String, index=True)
+    sensor_ID = Column(String, index=True)

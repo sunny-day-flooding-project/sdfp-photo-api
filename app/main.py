@@ -264,6 +264,8 @@ def add_a_new_camera_site(
         camera_ID: str = Query(..., description="Example: CAM_BF_01"),
         lng: float = Query(..., description="Example: -76.3"),
         lat: float = Query(..., description="Example: 34.1"),
+        camera_label: str = Query(default=None, description="Example: Front Street"),
+        sensor_ID: str = Query(default=None, description="Sensor ID to pull flood status from. Example: BF_01"),
         db: Session = Depends(get_db),
         credentials: HTTPBasicCredentials = Depends(security)
 ):
@@ -277,7 +279,7 @@ def add_a_new_camera_site(
             headers={"WWW-Authenticate": "Basic"},
         )
 
-    camera_info = db_functions.add_camera(db=db, place=place, camera_ID=camera_ID, lng=lng, lat=lat)
+    camera_info = db_functions.add_camera(db=db, place=place, camera_ID=camera_ID, lng=lng, lat=lat, camera_label=camera_label, sensor_ID=sensor_ID)
 
     return {
         camera_info
