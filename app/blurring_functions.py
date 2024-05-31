@@ -14,11 +14,11 @@ def blurCB_01(path):
     # Define the coordinates for the first top left corner box
     # Top coordinates
     top_left_x1 = int(image.shape[1] * .00)  # Adjust the fraction as needed
-    top_left_y1 = int(image.shape[0] * .10 + offset)  
+    top_left_y1 = int(image.shape[0] * .07 + offset)  
 
     #Bottom coordinates
     bottom_left_x2 = int(image.shape[1] * .32)
-    bottom_left_y2 = int(image.shape[0] * .44 + offset)  # Adjust the fraction as needed
+    bottom_left_y2 = int(image.shape[0] * .42 + offset)  # Adjust the fraction as needed
 
     # Blur the region of interest (top left corner box 1)
     blurred_roi_left1 = cv2.GaussianBlur(image[top_left_y1:bottom_left_y2, top_left_x1:bottom_left_x2], kernel_size, 0)
@@ -26,11 +26,11 @@ def blurCB_01(path):
     # Define the coordinates for the second top left corner box
     # Top coordinates
     top_left2_x1 = int(image.shape[1] * .32)  # Adjust the fraction as needed
-    top_left2_y1 = int(image.shape[0] * .10 + offset)  
+    top_left2_y1 = int(image.shape[0] * .07 + offset)  
 
     #Bottom coordinates
     bottom_left2_x2 = int(image.shape[1] * .40)
-    bottom_left2_y2 = int(image.shape[0] * .44 + offset)  # Adjust the fraction as needed
+    bottom_left2_y2 = int(image.shape[0] * .42 + offset)  # Adjust the fraction as needed
 
     # Blur the region of interest (top left corner box 2)
     blurred_roi_left2 = cv2.GaussianBlur(image[top_left2_y1:bottom_left2_y2, top_left2_x1:bottom_left2_x2], kernel_size, 0)
@@ -38,12 +38,12 @@ def blurCB_01(path):
     #Define the coordinates for the third top left box
     # Top coordinates 
     top_left3_x1 = int(image.shape[1] * .40) 
-    top_left3_y1 = int(image.shape[0] * .20 + offset) 
+    top_left3_y1 = int(image.shape[0] * .13 + offset) 
 
     # Bottom coordinates
 
-    bottom_left3_x2 = int(image.shape[1] * .495)
-    bottom_left3_y2 = int(image.shape[0] * .40 + offset)
+    bottom_left3_x2 = int(image.shape[1] * .485)
+    bottom_left3_y2 = int(image.shape[0] * .38 + offset)
 
     # Blur the region of interest (top left corner box 2)
     blurred_roi_left3 = cv2.GaussianBlur(image[top_left3_y1:bottom_left3_y2, top_left3_x1:bottom_left3_x2], kernel_size, 0)
@@ -51,11 +51,11 @@ def blurCB_01(path):
     # Define the coordinates for the right-middle box
     # Top coordinates
     top_rmid_x1 = int(image.shape[1] * .68)  # Adjust the fraction as needed
-    top_rmid_y1 = int(image.shape[0] * .28 + offset) # Bottom adjustment seems to work better here
+    top_rmid_y1 = int(image.shape[0] * .20 + offset) # Bottom adjustment seems to work better here
 
     #Bottom coordinates
     bottom_rmid_x2 = int(image.shape[1] * 1)
-    bottom_rmid_y2 = int(image.shape[0] * .46 + offset)  # Adjust the fraction as needed
+    bottom_rmid_y2 = int(image.shape[0] * .40 + offset)  # Adjust the fraction as needed
 
     # Blur the region of interest (right-middle box)
     blurred_roi_rmid = cv2.GaussianBlur(image[top_rmid_y1:bottom_rmid_y2, top_rmid_x1:bottom_rmid_x2], kernel_size, 0)
@@ -64,11 +64,11 @@ def blurCB_01(path):
     # Define the coordinates for the second right-middle box
     # Top coordinates
     top_rmid2_x1 = int(image.shape[1] * .62)  # Adjust the fraction as needed
-    top_rmid2_y1 = int(image.shape[0] * .30 + offset) # Bottom adjustment seems to work better here 
+    top_rmid2_y1 = int(image.shape[0] * .26 + offset) # Bottom adjustment seems to work better here 
 
     #Bottom coordinates
     bottom_rmid2_x2 = int(image.shape[1] * .68)
-    bottom_rmid2_y2 = int(image.shape[0] * .42 + offset)  # Adjust the fraction as needed
+    bottom_rmid2_y2 = int(image.shape[0] * .38 + offset)  # Adjust the fraction as needed
 
     # Blur the region of interest (second right-middle box)
     blurred_roi_rmid2 = cv2.GaussianBlur(image[top_rmid2_y1:bottom_rmid2_y2, top_rmid2_x1:bottom_rmid2_x2], kernel_size, 0)
@@ -339,31 +339,58 @@ def blurDE_01(path):
     # Load the image
     image = cv2.imread(path) ## Access image here 
 
-    kernel_size = (31, 31)  # Increase the kernel size for more blur
+    kernel_size = (75, 75)  # Increase the kernel size for more blur
 
     # Define the coordinates for the left-middle box 
     # Define the top coordinates
     top_left_x = int(image.shape[1] * .00)  # Adjust the fraction as needed
-    top_left_y = int(image.shape[0] * .35)  # Adjust the fraction as needed
+    top_left_y = int(image.shape[0] * .49)  # Adjust the fraction as needed
+
 
     # Define the bottom coordinates
-    bottom_right_x = int(image.shape[1] * .30)
+    bottom_right_x = int(image.shape[1] * .52)
     bottom_right_y = int(image.shape[0] * .97)  # Adjust the fraction as needed
+
+    # Define the coordinates for the left-middle2 box 
+    # Define the top coordinates
+    top_left3_x = int(image.shape[1] * .00)  # Adjust the fraction as needed
+    top_left3_y = int(image.shape[0] * .41)  # Adjust the fraction as needed
+
+    # Define the bottom coordinates
+    bottom_right3_x = int(image.shape[1] * .33)
+    bottom_right3_y = int(image.shape[0] * .49)  # Adjust the fraction as needed
+
+    # Define the coordinates for the left-middle4 box 
+    # Define the top coordinates
+    top_left4_x = int(image.shape[1] * .00)  # Adjust the fraction as needed
+    top_left4_y = int(image.shape[0] * .35)  # Adjust the fraction as needed
+
+    # Define the bottom coordinates
+    bottom_right4_x = int(image.shape[1] * .165)
+    bottom_right4_y = int(image.shape[0] * .41)  # Adjust the fraction as needed
+
+
 
     # Define the coordinates for the second left-middle box 
     # Define the top coordinates
     top2_left_x = int(image.shape[1] * .30)  # Adjust the fraction as needed
-    top2_left_y = int(image.shape[0] * .38)  # Adjust the fraction as needed
+    top2_left_y = int(image.shape[0] * .53)  # Adjust the fraction as needed
 
     # Define the bottom coordinates
-    bottom2_right_x = int(image.shape[1] * .65)
-    bottom2_right_y = int(image.shape[0] * .94)  # Adjust the fraction as needed
+    bottom2_right_x = int(image.shape[1] * .62)
+    bottom2_right_y = int(image.shape[0] * .94)  # Adjust the fraction as 
 
     # Blur the region of interest (middle-left box)
     blurred_roi_left = cv2.GaussianBlur(image[top_left_y:bottom_right_y, top_left_x:bottom_right_x], kernel_size, 0)
 
     # Blur the region of interest (Second middle-left box)
     blurred_roi_left2 = cv2.GaussianBlur(image[top2_left_y:bottom2_right_y, top2_left_x:bottom2_right_x], kernel_size, 0)
+
+    # Blur the region of interest (Second middle-left box)
+    blurred_roi_left3 = cv2.GaussianBlur(image[top_left3_y:bottom_right3_y, top_left3_x:bottom_right3_x], kernel_size, 0)
+
+    # Blur the region of interest (Second middle-left box)
+    blurred_roi_left4 = cv2.GaussianBlur(image[top_left4_y:bottom_right4_y, top_left4_x:bottom_right4_x], kernel_size, 0)
 
 
     # Create a copy of the original image
@@ -374,6 +401,12 @@ def blurDE_01(path):
 
     # Add the second blurred region to the top left corner
     output[top2_left_y:bottom2_right_y, top2_left_x:bottom2_right_x] = blurred_roi_left2
+
+    # Add the second blurred region to the top left corner
+    output[top_left3_y:bottom_right3_y, top_left3_x:bottom_right3_x] = blurred_roi_left3
+
+    # Add the second blurred region to the top left corner
+    output[top_left4_y:bottom_right4_y, top_left4_x:bottom_right4_x] = blurred_roi_left4
 
     # Save the output image
     cv2.imwrite(path, output) # Can be modified to not output photo
