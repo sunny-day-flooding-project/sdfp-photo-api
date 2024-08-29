@@ -516,11 +516,11 @@ def blurNB_01(path):
     # Define the coordinates for the top left corner
     # Top coordinates
     top_left_x = int(image.shape[1] * .00)  # Adjust the fraction as needed
-    top_left_y = int(image.shape[0] * .31 + offset)  # Adjust the fraction as needed
+    top_left_y = int(image.shape[0] * .25 + offset)  # Adjust the fraction as needed
 
     # Bottom coordinates
     bottom_right_x = int(image.shape[1] * .155)  # Adjust the fraction as needed
-    bottom_right_y = int(image.shape[0] * .42 + offset)  # Adjust the fraction as needed
+    bottom_right_y = int(image.shape[0] * .36 + offset)  # Adjust the fraction as needed
 
     # Blur the region of interest (top left corner)
     blurred_roi_left = cv2.GaussianBlur(image[top_left_y:bottom_right_y, top_left_x:bottom_right_x], kernel_size, 0)
