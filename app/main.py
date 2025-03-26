@@ -216,6 +216,13 @@ async def _file_upload(
                                     media_body=media,
                                     supportsAllDrives=True).execute()
 
+    # Remove old timestamped photo if exists
+    previous_pic = db_functions.get_latest_photo_info(db=db, camera_ID=camera_ID)
+    try:
+        os.remove("/photo_storage/" + previous_pic.drive_filename)
+    except:
+        print("File not found")
+
     db_functions.write_photo_info(
         db=db,
         drive_filename=picture_label,
@@ -230,6 +237,9 @@ async def _file_upload(
     )
 
     blurring_functions.blur_image(camera_ID.replace("CAM_", ""), reduced_image_path)
+    # Copy blurred image to filename with timestamp included
+    os.popen('cp ' + reduced_image_path + ' /photo_storage/' + picture_label)
+    
     os.remove(original_pic_path)
 
     return {"SUCCESS!"}
