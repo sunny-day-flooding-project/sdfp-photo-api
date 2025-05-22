@@ -1,5 +1,6 @@
 from __future__ import print_function
 import os
+import sys
 import logging
 import exifread
 import json
@@ -25,6 +26,7 @@ from oauth2client.service_account import ServiceAccountCredentials
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s %(levelname)s %(message)s",  # includes timestamp
+    stream=sys.stdout,
 )
 
 models.database.Base.metadata.create_all(bind=database.engine)
