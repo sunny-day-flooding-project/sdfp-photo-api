@@ -4,6 +4,7 @@ import exifread
 import json
 import secrets
 import arrow
+import boto3
 
 from app import models, database, db_functions, blurring_functions
 
@@ -20,8 +21,15 @@ from oauth2client.service_account import ServiceAccountCredentials
 
 models.database.Base.metadata.create_all(bind=database.engine)
 
-# from app import environment_vars
-# environment_vars.set_env_vars()
+# S3 access info for copying images to WebCOOS
+s3_client = boto3.client(
+    's3',
+    aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID"),
+    aws_secret_access_key=os.environ.get("AWS_SECRET_ACCESS_KEY"),
+    region_name=os.environ.get("AWS_DEFAULT_REGION")
+)
+s3_bucket = os.environ.get("S3_BUCKET_NAME")
+
 
 description = """
 Sunny Day Flooding Project Photo API lets you:
@@ -52,7 +60,17 @@ security = HTTPBasic()
 
 app.mount("/public", StaticFiles(directory="/photo_storage"), name="photo_storage")
 
+# The line below is for OpenShift running
 json_secret = json.loads(os.environ.get('GOOGLE_JSON_KEY'))
+
+# for local running only below
+# fp = open("/code/app/auth.json")  
+# json_secret = fp.read()
+# fp.close()
+# json_secret = json.loads(json_secret)
+# json_secret["private_key"] = json_secret["private_key"].replace("\\n", "\n")
+
+
 google_drive_folder_id = os.environ.get('GOOGLE_DRIVE_FOLDER_ID')
 
 scope = ["https://www.googleapis.com/auth/drive"]
@@ -240,6 +258,22 @@ async def _file_upload(
     # Copy blurred image to filename with timestamp included
     os.popen('cp ' + reduced_image_path + ' /photo_storage/' + picture_label)
     
+
+    # Check to see if this image should be copied to S3
+    camera_info = db_functions.get_camera( db=db, camera_ID=camera_ID)
+
+    if camera_info[0].sendto_webcoos is True:
+        # Copy blurred image to S3 bucket
+        # Construct the S3 path using EXIF date and camera_ID
+        s3_folder_path = f"media/sources/webcoos/groups/ncsu/assets/{camera_ID}/feeds/raw-video-data/products/image-stills/elements/{datetime_original_arrow.format('YYYY/MM/DD')}"
+        s3_filename = f"{camera_ID}-{datetime_original_arrow.format('YYYY-MM-DD-HHmmss')}Z.jpg"
+        s3_key = f"{s3_folder_path}/{s3_filename}"
+
+        # Upload the image to S3
+        with open(reduced_image_path, "rb") as f:
+            s3_client.upload_fileobj(f, s3_bucket, s3_key)
+
+
     os.remove(original_pic_path)
 
     return {"SUCCESS!"}
@@ -278,6 +312,7 @@ def add_a_new_camera_site(
         lat: float = Query(..., description="Example: 34.1"),
         camera_label: str = Query(default=None, description="Example: Front Street"),
         sensor_ID: str = Query(default=None, description="Sensor ID to pull flood status from. Example: BF_01"),
+        sendto_webcoos: bool = Query(default=False, description="True to send to WebCOOS, False to not send"),
         db: Session = Depends(get_db),
         credentials: HTTPBasicCredentials = Depends(security)
 ):
@@ -291,7 +326,7 @@ def add_a_new_camera_site(
             headers={"WWW-Authenticate": "Basic"},
         )
 
-    camera_info = db_functions.add_camera(db=db, place=place, camera_ID=camera_ID, lng=lng, lat=lat, camera_label=camera_label, sensor_ID=sensor_ID)
+    camera_info = db_functions.add_camera(db=db, place=place, camera_ID=camera_ID, lng=lng, lat=lat, camera_label=camera_label, sensor_ID=sensor_ID, sendto_webcoos=sendto_webcoos)
 
     return {
         camera_info

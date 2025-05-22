@@ -26,3 +26,5 @@ class camera_locations_model(database.Base):
     lat = Column(Float, index=True)
     camera_label = Column(String, index=True)
     sensor_ID = Column(String, index=True)
+    sendto_webcoos = Column(Boolean, index=True)
+    
