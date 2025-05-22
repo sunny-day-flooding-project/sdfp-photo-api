@@ -5,6 +5,7 @@ import json
 import secrets
 import arrow
 import boto3
+from botocore.exceptions import BotoCoreError, ClientError
 
 from app import models, database, db_functions, blurring_functions
 
@@ -18,6 +19,12 @@ from sqlalchemy.orm import Session
 from dateutil import tz
 from googleapiclient.discovery import build
 from oauth2client.service_account import ServiceAccountCredentials
+
+# override print so each statement is timestamped
+old_print = print
+def timestamped_print(*args, **kwargs):
+  old_print(datetime.now(), *args, **kwargs)
+print = timestamped_print
 
 models.database.Base.metadata.create_all(bind=database.engine)
 
@@ -103,6 +110,8 @@ async def _file_upload(
         db: Session = Depends(get_db),
         credentials: HTTPBasicCredentials = Depends(security)
 ):
+    print("/upload_picture " + camera_ID + " " + file.filename)
+
     correct_username = secrets.compare_digest(credentials.username, os.environ.get('username'))
     correct_password = secrets.compare_digest(credentials.password, os.environ.get('password'))
 
@@ -269,10 +278,15 @@ async def _file_upload(
         s3_filename = f"{camera_ID}-{datetime_original_arrow.format('YYYY-MM-DD-HHmmss')}Z.jpg"
         s3_key = f"{s3_folder_path}/{s3_filename}"
 
-        # Upload the image to S3
-        with open(reduced_image_path, "rb") as f:
-            s3_client.upload_fileobj(f, s3_bucket, s3_key)
+        print(f"Uploading to S3: {s3_key}")
 
+        # Upload the image to S3
+        try:
+            with open(reduced_image_path, "rb") as f:
+                s3_client.upload_fileobj(f, s3_bucket, s3_key)
+            print("Upload successful.")
+        except (BotoCoreError, ClientError) as e:
+            print(f"Upload failed: {e}")
 
     os.remove(original_pic_path)
 
