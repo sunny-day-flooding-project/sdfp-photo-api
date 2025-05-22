@@ -1,5 +1,6 @@
 from __future__ import print_function
 import os
+import logging
 import exifread
 import json
 import secrets
@@ -20,11 +21,11 @@ from dateutil import tz
 from googleapiclient.discovery import build
 from oauth2client.service_account import ServiceAccountCredentials
 
-# override print so each statement is timestamped
-old_print = print
-def timestamped_print(*args, **kwargs):
-  old_print(datetime.now(), *args, **kwargs)
-print = timestamped_print
+# Set up logging to use timestamps
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(message)s",  # includes timestamp
+)
 
 models.database.Base.metadata.create_all(bind=database.engine)
 
@@ -68,14 +69,14 @@ security = HTTPBasic()
 app.mount("/public", StaticFiles(directory="/photo_storage"), name="photo_storage")
 
 # The line below is for OpenShift running
-json_secret = json.loads(os.environ.get('GOOGLE_JSON_KEY'))
+# json_secret = json.loads(os.environ.get('GOOGLE_JSON_KEY'))
 
 # for local running only below
-# fp = open("/code/app/auth.json")  
-# json_secret = fp.read()
-# fp.close()
-# json_secret = json.loads(json_secret)
-# json_secret["private_key"] = json_secret["private_key"].replace("\\n", "\n")
+fp = open("/code/app/auth.json")  
+json_secret = fp.read()
+fp.close()
+json_secret = json.loads(json_secret)
+json_secret["private_key"] = json_secret["private_key"].replace("\\n", "\n")
 
 
 google_drive_folder_id = os.environ.get('GOOGLE_DRIVE_FOLDER_ID')
@@ -110,7 +111,7 @@ async def _file_upload(
         db: Session = Depends(get_db),
         credentials: HTTPBasicCredentials = Depends(security)
 ):
-    print("/upload_picture " + camera_ID + " " + file.filename)
+    logging.info("/upload_picture " + camera_ID + " " + file.filename)
 
     correct_username = secrets.compare_digest(credentials.username, os.environ.get('username'))
     correct_password = secrets.compare_digest(credentials.password, os.environ.get('password'))
@@ -227,7 +228,7 @@ async def _file_upload(
     ).execute().get('files', [])
 
     if len(picture_info) > 0:
-        print("Picture already exists! Not overwriting")
+        logging.info("Picture already exists! Not overwriting")
 
     # If there is NOT a picture by that name, write one
     if len(picture_info) == 0:
@@ -248,7 +249,7 @@ async def _file_upload(
     try:
         os.remove("/photo_storage/" + previous_pic.drive_filename)
     except:
-        print("File not found")
+        logging.info("File not found")
 
     db_functions.write_photo_info(
         db=db,
@@ -278,15 +279,15 @@ async def _file_upload(
         s3_filename = f"{camera_ID}-{datetime_original_arrow.format('YYYY-MM-DD-HHmmss')}Z.jpg"
         s3_key = f"{s3_folder_path}/{s3_filename}"
 
-        print(f"Uploading to S3: {s3_key}")
+        logging.info(f"Uploading to S3: {s3_key}")
 
         # Upload the image to S3
         try:
             with open(reduced_image_path, "rb") as f:
                 s3_client.upload_fileobj(f, s3_bucket, s3_key)
-            print("Upload successful.")
+            logging.info("Upload successful.")
         except (BotoCoreError, ClientError) as e:
-            print(f"Upload failed: {e}")
+            logging.info(f"Upload failed: {e}")
 
     os.remove(original_pic_path)
 
