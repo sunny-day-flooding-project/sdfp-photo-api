@@ -22,12 +22,8 @@ from dateutil import tz
 from googleapiclient.discovery import build
 from oauth2client.service_account import ServiceAccountCredentials
 
-# Set up logging to use timestamps
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s %(levelname)s %(message)s",  # includes timestamp
-    stream=sys.stdout,
-)
+# Set up logging
+logging.getLogger("myapp")
 
 models.database.Base.metadata.create_all(bind=database.engine)
 
@@ -70,15 +66,17 @@ security = HTTPBasic()
 
 app.mount("/public", StaticFiles(directory="/photo_storage"), name="photo_storage")
 
-# The line below is for OpenShift running
-# json_secret = json.loads(os.environ.get('GOOGLE_JSON_KEY'))
-
-# for local running only below
-fp = open("/code/app/auth.json")  
-json_secret = fp.read()
-fp.close()
-json_secret = json.loads(json_secret)
-json_secret["private_key"] = json_secret["private_key"].replace("\\n", "\n")
+host_os = os.getenv("HOST_OS")
+if host_os and host_os.lower() == "windows":
+    # for local running only below
+    fp = open("/code/app/auth.json")  
+    json_secret = fp.read()
+    fp.close()
+    json_secret = json.loads(json_secret)
+    json_secret["private_key"] = json_secret["private_key"].replace("\\n", "\n")
+else:
+    # The line below is for OpenShift running
+    json_secret = json.loads(os.environ.get('GOOGLE_JSON_KEY'))
 
 
 google_drive_folder_id = os.environ.get('GOOGLE_DRIVE_FOLDER_ID')
