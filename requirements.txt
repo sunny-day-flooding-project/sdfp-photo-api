@@ -44,3 +44,4 @@ urllib3==1.26.9; python_version >= "3.6" and python_full_version < "3.0.0" or py
 uvicorn==0.17.6; python_version >= "3.7"
 boto3==1.38.18;
 pyyaml==6.0;
+piexif==1.1.3
