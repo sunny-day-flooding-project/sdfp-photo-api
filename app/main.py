@@ -324,7 +324,7 @@ async def _file_upload(
     
     # Generate the S3 'slug' for the image
     place_name = camera_info[0].place.split(',')[0] if ',' in camera_info[0].place else camera_info[0].place
-    place_name = place_name.replace(" ", "_").lower() + "_" + camera_ID[-2:]  # Use the place name and the last two digits of camera_ID
+    place_name = place_name.replace(" ", "_").lower() + "_" + camera_ID.rsplit('_', 1)[-1]
     if camera_info[0].sendto_webcoos is True:
         # Copy blurred image to S3 bucket
         # Construct the S3 path using EXIF date and camera_ID
