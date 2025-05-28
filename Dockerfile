@@ -2,7 +2,7 @@ FROM python:3.10.4
 
 WORKDIR /code
 
-RUN apt-get update && apt-get install ffmpeg libsm6 libxext6 exiftool -y
+RUN apt-get update && apt-get install ffmpeg libsm6 libxext6 libimage-exiftool-perl -y
 
 COPY requirements.txt /code/requirements.txt
 
