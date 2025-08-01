@@ -3,11 +3,13 @@ import os
 import sys
 import logging
 import exifread
+import piexif
 import json
 import secrets
 import arrow
 import boto3
 from botocore.exceptions import BotoCoreError, ClientError
+from fractions import Fraction
 
 from app import models, database, db_functions, blurring_functions
 
@@ -22,12 +24,8 @@ from dateutil import tz
 from googleapiclient.discovery import build
 from oauth2client.service_account import ServiceAccountCredentials
 
-# Set up logging to use timestamps
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s %(levelname)s %(message)s",  # includes timestamp
-    stream=sys.stdout,
-)
+# Set up logging
+logging.getLogger("myapp")
 
 models.database.Base.metadata.create_all(bind=database.engine)
 
@@ -70,15 +68,17 @@ security = HTTPBasic()
 
 app.mount("/public", StaticFiles(directory="/photo_storage"), name="photo_storage")
 
-# The line below is for OpenShift running
-json_secret = json.loads(os.environ.get('GOOGLE_JSON_KEY')) 
-
-# for local running only below
-# fp = open("/code/app/auth.json")  
-# json_secret = fp.read()
-# fp.close()
-# json_secret = json.loads(json_secret)
-json_secret["private_key"] = json_secret["private_key"].replace("\\n", "\n")
+host_os = os.getenv("HOST_OS")
+if host_os and host_os.lower() == "windows":
+    # for local running only below
+    fp = open("/code/app/auth.json")  
+    json_secret = fp.read()
+    fp.close()
+    json_secret = json.loads(json_secret)
+    json_secret["private_key"] = json_secret["private_key"].replace("\\n", "\n")
+else:
+    # The line below is for OpenShift running
+    json_secret = json.loads(os.environ.get('GOOGLE_JSON_KEY'))
 
 
 google_drive_folder_id = os.environ.get('GOOGLE_DRIVE_FOLDER_ID')
@@ -99,6 +99,38 @@ def get_db():
     finally:
         db.close()
 
+# Helper function to convert decimal degrees to DMS in EXIF rational format
+def deg_to_dms_rational(deg):
+    """Convert decimal degrees to degrees, minutes, seconds in EXIF rational format."""
+    d = int(deg)
+    m_float = abs(deg - d) * 60
+    m = int(m_float)
+    s = (m_float - m) * 60
+    return [
+        (abs(d), 1),
+        (m, 1),
+        (int(s * 10000), 10000)
+    ]
+
+def set_gps_location(file_path, output_path, lat, lon):
+    # Open image and get current EXIF
+    img = Image.open(file_path)
+    exif_dict = piexif.load(img.info.get('exif', b''))
+
+    # Define GPS IFD
+    gps_ifd = {
+        piexif.GPSIFD.GPSLatitudeRef: 'N' if lat >= 0 else 'S',
+        piexif.GPSIFD.GPSLatitude: deg_to_dms_rational(lat),
+        piexif.GPSIFD.GPSLongitudeRef: 'E' if lon >= 0 else 'W',
+        piexif.GPSIFD.GPSLongitude: deg_to_dms_rational(lon),
+    }
+
+    # Add GPS IFD to EXIF and insert back
+    exif_dict['GPS'] = gps_ifd
+    exif_bytes = piexif.dump(exif_dict)
+
+    # Save image with updated EXIF
+    img.save(output_path, exif=exif_bytes)
 
 @app.get("/")
 async def root():
@@ -134,10 +166,30 @@ async def _file_upload(
         myfile.write(content)
         myfile.close()
 
-    img_for_exif = open(original_pic_path, 'rb')
-    tags = exifread.process_file(img_for_exif)
+    # Get the lat/lon and check to see if this image should be copied to S3
+    camera_info = db_functions.get_camera( db=db, camera_ID=camera_ID)
+    if not camera_info:
+        return {"ERROR": "Camera ID "+camera_ID+" not found in database"}
+    lat = camera_info[0].lat
+    lon = camera_info[0].lng
+    set_gps_location(original_pic_path, original_pic_path, lat, lon)
 
-    datetime_string = [str(value) for key, value in tags.items() if 'DateTime' in key][0]
+    #img_for_exif = open(original_pic_path, 'rb')
+    #tags = exifread.process_file(img_for_exif)
+    #datetime_string = [str(value) for key, value in tags.items() if 'DateTime' in key][0]
+
+    with Image.open(original_pic_path) as img:
+        exif_bytes = img.info.get('exif')
+        exif_dict = piexif.load(exif_bytes) if exif_bytes else {}
+
+    datetime_bytes = exif_dict["Exif"].get(piexif.ExifIFD.DateTimeOriginal)
+
+    if not datetime_bytes:
+        raise ValueError("DateTimeOriginal tag not found in EXIF data.")
+
+    # Decode bytes to string
+    datetime_string = datetime_bytes.decode("utf-8")
+
 
     datetime_original_arrow = arrow.get(datetime.strptime(datetime_string, "%Y:%m:%d %H:%M:%S"),
                                         tz.gettz(timezone)).to('utc')
@@ -154,7 +206,7 @@ async def _file_upload(
 
     img.thumbnail(size=(1000, 750))
     reduced_image_path = "/photo_storage/" + camera_ID + ".jpg"
-    img.save(reduced_image_path)
+    img.save(reduced_image_path, exif=exif_bytes)
     img.close()
 
     # Find the ID of the "Images" main folder so we can make a new
@@ -270,14 +322,13 @@ async def _file_upload(
     # Copy blurred image to filename with timestamp included
     os.popen('cp ' + reduced_image_path + ' /photo_storage/' + picture_label)
     
-
-    # Check to see if this image should be copied to S3
-    camera_info = db_functions.get_camera( db=db, camera_ID=camera_ID)
-
+    # Generate the S3 'slug' for the image
+    place_name = camera_info[0].place.split(',')[0] if ',' in camera_info[0].place else camera_info[0].place
+    place_name = place_name.replace(" ", "_").lower() + "_" + camera_ID.rsplit('_', 1)[-1]
     if camera_info[0].sendto_webcoos is True:
         # Copy blurred image to S3 bucket
         # Construct the S3 path using EXIF date and camera_ID
-        s3_folder_path = f"media/sources/webcoos/groups/ncsu/assets/{camera_ID}/feeds/raw-video-data/products/image-stills/elements/{datetime_original_arrow.format('YYYY/MM/DD')}"
+        s3_folder_path = f"media/sources/webcoos/groups/ncsu/assets/{place_name}/feeds/raw-video-data/products/image-stills/elements/{datetime_original_arrow.format('YYYY/MM/DD')}"
         s3_filename = f"{camera_ID}-{datetime_original_arrow.format('YYYY-MM-DD-HHmmss')}Z.jpg"
         s3_key = f"{s3_folder_path}/{s3_filename}"
 
