@@ -1,0 +1,10 @@
+name: image_blurring
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python
+  - labelme
+  - pyqt
+  - pillow
+  - jupyter
