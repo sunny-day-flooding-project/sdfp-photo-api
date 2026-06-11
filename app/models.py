@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Column, String, Float, DateTime, Interval
+from sqlalchemy import Boolean, Column, String, Float, DateTime, Interval, text
 
 from app import database
 
@@ -12,10 +12,10 @@ class photo_info_model(database.Base):
     DateTimeOriginal = Column(String, index=True)
     original_tz = Column(String, index=True)
     DateTimeOriginalUTC = Column(DateTime, index=True)
-    poseidonDone = Column(Boolean, index=True)
-    poseidonWaterDetected = Column(Boolean, index=True)
-    poseidonMaxDepth = Column(Float, index=True)
-    poseidonFloodDuration = Column(Interval, index=True)
+    poseidonDone = Column(Boolean, index=True, nullable=False, server_default=text('false'))
+    poseidonWaterDetected = Column(Boolean, index=True, nullable=False, server_default=text('false'))
+    poseidonMaxDepth = Column(Float, index=True, nullable=False, server_default=text('0'))
+    poseidonFloodDuration = Column(Interval, index=True, nullable=False, server_default=text("'0 seconds'::interval"))
 
 class camera_locations_model(database.Base):
     __tablename__ = "camera_locations"
