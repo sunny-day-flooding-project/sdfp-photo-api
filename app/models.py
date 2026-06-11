@@ -8,13 +8,10 @@ class photo_info_model(database.Base):
 
     drive_filename = Column(String, primary_key=True, index=True)
     camera_ID = Column(String, index=True)
-    SourceFile = Column(String, index=True)
-    FileName = Column(String, index=True)
     FileSize = Column(Float, index=True)
     DateTimeOriginal = Column(String, index=True)
     original_tz = Column(String, index=True)
     DateTimeOriginalUTC = Column(DateTime, index=True)
-    high_water = Column(Boolean, index=True)
 
 
 class camera_locations_model(database.Base):

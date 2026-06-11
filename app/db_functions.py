@@ -61,13 +61,10 @@ def add_camera(db: Session,
 def write_photo_info(db: Session,
                      drive_filename: str,
                      camera_ID: str,
-                     SourceFile: str,
-                     FileName: str,
                      FileSize: float,
                      DateTimeOriginal: str,
                      original_tz: str,
-                     DateTimeOriginalUTC: str,
-                     high_water: bool
+                     DateTimeOriginalUTC: str
                      ):
     photo_in_db = db.query(models.photo_info_model).filter(models.photo_info_model.drive_filename == drive_filename).all()
 
@@ -81,13 +78,10 @@ def write_photo_info(db: Session,
         new_photo_data = models.photo_info_model(
             drive_filename=drive_filename,
             camera_ID=camera_ID,
-            SourceFile=SourceFile,
-            FileName=FileName,
             FileSize=FileSize,
             DateTimeOriginal=DateTimeOriginal,
             original_tz=original_tz,
-            DateTimeOriginalUTC=DateTimeOriginalUTC,
-            high_water=high_water
+            DateTimeOriginalUTC=DateTimeOriginalUTC
         )
 
         db.add(new_photo_data)

@@ -309,13 +309,10 @@ async def _file_upload(
         db=db,
         drive_filename=picture_label,
         camera_ID=camera_ID,
-        SourceFile="none",
-        FileName="none",
         FileSize=os.path.getsize(original_pic_path),
         DateTimeOriginal=datetime_string,
         original_tz=timezone,
-        DateTimeOriginalUTC=datetime_original_arrow.datetime,
-        high_water=False
+        DateTimeOriginalUTC=datetime_original_arrow.datetime
     )
 
     blurring_functions.blur_image(camera_ID.replace("CAM_", ""), reduced_image_path)
