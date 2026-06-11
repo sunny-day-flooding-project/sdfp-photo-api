@@ -1,4 +1,5 @@
 import datetime
+from xmlrpc.client import Boolean
 
 from sqlalchemy import desc
 from sqlalchemy.orm import Session
@@ -65,6 +66,11 @@ def write_photo_info(db: Session,
                      DateTimeOriginal: str,
                      original_tz: str,
                      DateTimeOriginalUTC: str
+                     # to be written by separate process
+                     #poseidonDone: bool,
+                     #poseidonWaterDetected: bool,
+                     #poseidonMaxDepth: float,
+                     #poseidonFloodDuration: datetime.timedelta
                      ):
     photo_in_db = db.query(models.photo_info_model).filter(models.photo_info_model.drive_filename == drive_filename).all()
 
@@ -82,6 +88,11 @@ def write_photo_info(db: Session,
             DateTimeOriginal=DateTimeOriginal,
             original_tz=original_tz,
             DateTimeOriginalUTC=DateTimeOriginalUTC
+            # to be written by separate process
+            #poseidonDone=poseidonDone,
+            #poseidonWaterDetected=poseidonWaterDetected,
+            #poseidonMaxDepth=poseidonMaxDepth,
+            #poseidonFloodDuration=poseidonFloodDuration
         )
 
         db.add(new_photo_data)
