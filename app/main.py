@@ -406,6 +406,7 @@ def add_a_new_camera_site(
         camera_label: str = Query(default=None, description="Example: Front Street"),
         sensor_ID: str = Query(default=None, description="Sensor ID to pull flood status from. Example: BF_01"),
         sendto_webcoos: bool = Query(default=False, description="True to send to WebCOOS, False to not send"),
+        doPoseidon: bool = Query(default=False, description="True to enable Poseidon ML processing, False to not enable"),
         db: Session = Depends(get_db),
         credentials: HTTPBasicCredentials = Depends(security)
 ):
@@ -419,7 +420,9 @@ def add_a_new_camera_site(
             headers={"WWW-Authenticate": "Basic"},
         )
 
-    camera_info = db_functions.add_camera(db=db, place=place, camera_ID=camera_ID, lng=lng, lat=lat, camera_label=camera_label, sensor_ID=sensor_ID, sendto_webcoos=sendto_webcoos)
+    camera_info = db_functions.add_camera(db=db, place=place, camera_ID=camera_ID, lng=lng, lat=lat, 
+                                          camera_label=camera_label, sensor_ID=sensor_ID, 
+                                          sendto_webcoos=sendto_webcoos, doPoseidon=doPoseidon)
 
     return {
         camera_info

@@ -32,7 +32,8 @@ def add_camera(db: Session,
                lat: float,
                camera_label: str,
                sensor_ID: str,
-               sendto_webcoos: bool
+               sendto_webcoos: bool,
+               doPoseidon: bool
                      ):
     camera_in_db = db.query(models.camera_locations_model).filter(models.camera_locations_model.camera_ID == camera_ID).all()
 
@@ -42,7 +43,6 @@ def add_camera(db: Session,
         return "Camera already exists!"
 
     if(camera_exists == False):
-
         new_camera = models.camera_locations_model(
             place=place,
             camera_ID=camera_ID,
@@ -50,7 +50,8 @@ def add_camera(db: Session,
             lat=lat,
             camera_label=camera_label,
             sensor_ID=sensor_ID,
-            sendto_webcoos=sendto_webcoos
+            sendto_webcoos=sendto_webcoos,
+            doPoseidon=doPoseidon
         )
 
         db.add(new_camera)

@@ -27,4 +27,5 @@ class camera_locations_model(database.Base):
     camera_label = Column(String, index=True)
     sensor_ID = Column(String, index=True)
     sendto_webcoos = Column(Boolean, index=True)
+    doPoseidon = Column(Boolean, index=True)
     
