@@ -369,6 +369,34 @@ def get_latest_picture_info(
     }
 
 
+@app.get('/get_picture_info')
+def get_picture_info(
+        drive_filename: str = Query(..., description="Example: CAM_CB_02_20260514233602.jpg"),
+        db: Session = Depends(get_db),
+        credentials: HTTPBasicCredentials = Depends(security)
+):
+    correct_username = secrets.compare_digest(credentials.username, os.environ.get('username'))
+    correct_password = secrets.compare_digest(credentials.password, os.environ.get('password'))
+    ro_username = secrets.compare_digest(credentials.username, os.environ.get('ro_username'))
+    ro_password = secrets.compare_digest(credentials.password, os.environ.get('ro_password'))
+
+    if not ((correct_username and correct_password) or (ro_username and ro_password)):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password",
+            headers={"WWW-Authenticate": "Basic"},
+        )
+
+    some_photo_info = db_functions.get_photo_info(db=db, drive_filename=drive_filename)
+
+    if not some_photo_info:
+        raise HTTPException(status_code=404, detail="Photo not found")
+
+    return {
+        some_photo_info
+    }
+
+
 @app.post('/write_camera')
 def add_a_new_camera_site(
         place: str = Query(..., description="Example: Beaufort, North Carolina"),
