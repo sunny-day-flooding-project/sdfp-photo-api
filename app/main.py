@@ -8,6 +8,7 @@ import json
 import secrets
 import arrow
 import boto3
+import shutil
 from botocore.exceptions import BotoCoreError, ClientError
 from fractions import Fraction
 
@@ -132,6 +133,79 @@ def set_gps_location(file_path, output_path, lat, lon):
     # Save image with updated EXIF
     img.save(output_path, exif=exif_bytes)
 
+def get_or_create_folder(drive, parent_id, folder_name):
+    """Find or create a google drive folder by name within a parent folder.
+    Args:
+        drive: Google Drive service object
+        parent_id: ID of the parent folder
+        folder_name: Name of the folder to find or create
+    Returns:
+        ID of the folder (existing or newly created)
+    """
+    # Search for the folder
+    folder_info = drive.files().list(
+        corpora="drive",
+        driveId=google_drive_folder_id,
+        includeItemsFromAllDrives=True,
+        supportsAllDrives=True,
+        q="name='" + folder_name + "' and mimeType='application/vnd.google-apps.folder' and '" + parent_id + "' in parents and trashed = false"
+    ).execute().get('files', [])
+    
+    # If folder exists, return its ID
+    if len(folder_info) > 0:
+        return folder_info[0].get('id')
+    
+    # If folder doesn't exist, create it
+    file_metadata = {
+        'name': folder_name,
+        'mimeType': 'application/vnd.google-apps.folder',
+        'parents': [parent_id]
+    }
+    file = drive.files().create(body=file_metadata,
+                                supportsAllDrives=True).execute()
+    return file.get('id')
+
+def file_exists_in_drive(drive, parent_id, filename):
+    """Check if a file exists in a Google Drive folder.
+    Args:
+        drive: Google Drive service object
+        parent_id: ID of the parent folder
+        filename: Name of the file to search for
+    Returns:
+        True if file exists, False otherwise
+    """
+    file_info = drive.files().list(
+        corpora="drive",
+        driveId=google_drive_folder_id,
+        includeItemsFromAllDrives=True,
+        supportsAllDrives=True,
+        q="'" + parent_id + "'" + " in parents and trashed = false and name='" + filename + "'"
+    ).execute().get('files', [])
+    return len(file_info) > 0
+
+def upload_file_to_drive(drive, parent_id, filename, local_path):
+    """Upload a file to Google Drive if it doesn't already exist.
+    Args:
+        drive: Google Drive service object
+        parent_id: ID of the parent folder
+        filename: Name for the file on Drive
+        local_path: Local path to the file to upload
+    """
+    if not file_exists_in_drive(drive, parent_id, filename):
+        file_metadata = {
+            'name': filename,
+            'parents': [parent_id]
+        }
+        media = MediaFileUpload(local_path,
+                                mimetype='image/jpg',
+                                resumable=True)
+        drive.files().create(body=file_metadata,
+                            media_body=media,
+                            supportsAllDrives=True).execute()
+    else:
+        logging.info("Picture already exists! Not overwriting")
+
+
 @app.get("/")
 async def root():
     return {"message": "Hello there! Navigate to https://photos-sunnydayflood.apps.cloudapps.unc.edu/docs to view the documentation for this API"}
@@ -147,9 +221,9 @@ async def _file_upload(
 ):
     logging.info("/upload_picture " + camera_ID + " " + file.filename)
 
+    # Authenticate
     correct_username = secrets.compare_digest(credentials.username, os.environ.get('username'))
     correct_password = secrets.compare_digest(credentials.password, os.environ.get('password'))
-
     if not (correct_username and correct_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -157,16 +231,14 @@ async def _file_upload(
             headers={"WWW-Authenticate": "Basic"},
         )
 
+    # Save the original high-res image to photo_storage (will be deleted later)
     original_pic_path = "/photo_storage/highres_" + camera_ID + ".jpg"
-    # original_pic_path = "app/original_pictures/highres_" + camera_ID + ".jpg"
-
-    # SAVE FILE ORIGINAL
     with open(original_pic_path, "wb") as myfile:
         content = await file.read()
         myfile.write(content)
         myfile.close()
 
-    # Get the lat/lon and check to see if this image should be copied to S3
+    # Get the lat/lon and insert into EXIF of the original high-res image
     camera_info = db_functions.get_camera( db=db, camera_ID=camera_ID)
     if not camera_info:
         return {"ERROR": "Camera ID "+camera_ID+" not found in database"}
@@ -174,43 +246,33 @@ async def _file_upload(
     lon = camera_info[0].lng
     set_gps_location(original_pic_path, original_pic_path, lat, lon)
 
-    #img_for_exif = open(original_pic_path, 'rb')
-    #tags = exifread.process_file(img_for_exif)
-    #datetime_string = [str(value) for key, value in tags.items() if 'DateTime' in key][0]
-
+    # Extract the DateTimeOriginal from the original image's EXIF data
     with Image.open(original_pic_path) as img:
         exif_bytes = img.info.get('exif')
         exif_dict = piexif.load(exif_bytes) if exif_bytes else {}
-
     datetime_bytes = exif_dict["Exif"].get(piexif.ExifIFD.DateTimeOriginal)
-
     if not datetime_bytes:
         raise ValueError("DateTimeOriginal tag not found in EXIF data.")
-
-    # Decode bytes to string
-    datetime_string = datetime_bytes.decode("utf-8")
-
-
+    datetime_string = datetime_bytes.decode("utf-8")    # Decode bytes to string
+    # Convert the DateTimeOriginal to a timezone-aware Arrow object in UTC
     datetime_original_arrow = arrow.get(datetime.strptime(datetime_string, "%Y:%m:%d %H:%M:%S"),
                                         tz.gettz(timezone)).to('utc')
+    picture_label = camera_ID + "_" + datetime_original_arrow.format("YYYYMMDDHHmmss") + ".jpg"     # Label for the picture file, which includes the camera ID and the timestamp
+    date_label = datetime_original_arrow.format("YYYY-MM-DD")   # Label for the date folder, which is just the date portion of the timestamp
 
-    picture_label = camera_ID + "_" + datetime_original_arrow.format("YYYYMMDDHHmmss") + ".jpg"
-    date_label = datetime_original_arrow.format("YYYY-MM-DD")
-
+    # Create a reduced-size version of the image for blurring and uploading to Google Drive and S3
     try:
         img = Image.open(original_pic_path)
     except OSError:
         return "Error opening image. Image is corrupt"
     except:
         return "Error opening image. Unknown error"
-
     img.thumbnail(size=(1000, 750))
     reduced_image_path = "/photo_storage/" + camera_ID + ".jpg"
     img.save(reduced_image_path, exif=exif_bytes)
     img.close()
 
-    # Find the ID of the "Images" main folder so we can make a new
-    # folder for the camera_ID, if needed
+    # Find or create folder hierarchy on Google Drive
     images_folder_id = drive.files().list(
         corpora="drive",
         driveId=google_drive_folder_id,
@@ -218,93 +280,18 @@ async def _file_upload(
         supportsAllDrives=True,
         q="name='Images' and mimeType='application/vnd.google-apps.folder'"
     ).execute().get('files')[0].get('id')
+    camera_image_folder_id = get_or_create_folder(drive, images_folder_id, camera_ID)
+    date_folder_id = get_or_create_folder(drive, camera_image_folder_id, date_label)
+    upload_file_to_drive(drive, date_folder_id, picture_label, original_pic_path)    # Upload the file if it doesn't already exist
 
-    # Search for the camera's folder within
-    camera_image_folder_info = drive.files().list(
-        corpora="drive",
-        driveId=google_drive_folder_id,
-        includeItemsFromAllDrives=True,
-        supportsAllDrives=True,
-        q="name='" + camera_ID + "' and mimeType='application/vnd.google-apps.folder' and '" + images_folder_id + "' in parents and trashed = false"
-    ).execute().get('files', [])
-
-    # If the camera's folder exists, get the ID
-    if len(camera_image_folder_info) > 0:
-        camera_image_folder_id = camera_image_folder_info[0].get('id')
-
-    # If the camera's folder does NOT exist, make it within the "Images" folder and get its ID
-    if len(camera_image_folder_info) == 0:
-        file_metadata = {
-            'name': camera_ID,
-            'mimeType': 'application/vnd.google-apps.folder',
-            'parents': [images_folder_id]
-        }
-
-        file = drive.files().create(body=file_metadata,
-                                    supportsAllDrives=True).execute()
-
-        camera_image_folder_id = file.get('id')
-
-    # Within the camera's folder, see if there is a folder for the specific date of interest (date_label)
-    date_folder_info = drive.files().list(
-        corpora="drive",
-        driveId=google_drive_folder_id,
-        includeItemsFromAllDrives=True,
-        supportsAllDrives=True,
-        q="'" + camera_image_folder_id + "'" + " in parents and trashed = false and name='" + date_label + "' and mimeType='application/vnd.google-apps.folder'"
-    ).execute().get('files', [])
-
-    # If there is a folder for the date within the camera's folder, get the ID
-    if len(date_folder_info) > 0:
-        date_folder_id = date_folder_info[0].get('id')
-
-    # If there is NOT a folder for the date within the camera's folder, make one within that folder
-    if len(date_folder_info) == 0:
-        # make new folder for the date
-
-        file_metadata = {
-            'name': date_label,
-            'mimeType': 'application/vnd.google-apps.folder',
-            'parents': [camera_image_folder_id]
-        }
-
-        file = drive.files().create(body=file_metadata,
-                                    supportsAllDrives=True).execute()
-
-        date_folder_id = file.get('id')
-
-    picture_info = drive.files().list(
-        corpora="drive",
-        driveId=google_drive_folder_id,
-        includeItemsFromAllDrives=True,
-        supportsAllDrives=True,
-        q="'" + date_folder_id + "'" + " in parents and trashed = false and name='" + picture_label + "'"
-    ).execute().get('files', [])
-
-    if len(picture_info) > 0:
-        logging.info("Picture already exists! Not overwriting")
-
-    # If there is NOT a picture by that name, write one
-    if len(picture_info) == 0:
-        file_metadata = {
-            'name': [picture_label],
-            'parents': [date_folder_id]
-        }
-        media = MediaFileUpload(original_pic_path,
-                                mimetype='image/jpg',
-                                resumable=True)
-
-        file = drive.files().create(body=file_metadata,
-                                    media_body=media,
-                                    supportsAllDrives=True).execute()
-
-    # Remove old timestamped photo if exists
+    # Remove previous timestamped photo if exists
     previous_pic = db_functions.get_latest_photo_info(db=db, camera_ID=camera_ID)
     try:
         os.remove("/photo_storage/" + previous_pic.drive_filename)
     except:
         logging.info("File not found")
 
+    # write the info for the current photo to the database
     db_functions.write_photo_info(
         db=db,
         drive_filename=picture_label,
@@ -315,9 +302,15 @@ async def _file_upload(
         DateTimeOriginalUTC=datetime_original_arrow.datetime
     )
 
+    # Apply the blurring function to the reduced image
     blurring_functions.blur_image(camera_ID.replace("CAM_", ""), reduced_image_path)
-    # Copy blurred image to filename with timestamp included
-    os.popen('cp ' + reduced_image_path + ' /photo_storage/' + picture_label)
+    destination_path = os.path.join("/photo_storage", picture_label)
+    try:
+        shutil.copy2(reduced_image_path, destination_path)
+    except OSError as exc:
+        logging.error("Failed to copy reduced image to %s: %s", destination_path, exc)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail="Failed to save reduced image")
     
     # Generate the S3 'slug' for the image
     place_name = camera_info[0].place.split(',')[0] if ',' in camera_info[0].place else camera_info[0].place
@@ -338,6 +331,82 @@ async def _file_upload(
             logging.info("Upload successful.")
         except (BotoCoreError, ClientError) as e:
             logging.info(f"Upload failed: {e}")
+
+    # Remove the original high-res image leaving the reduced blurred version
+    os.remove(original_pic_path)
+
+    return {"SUCCESS!"}
+
+
+@app.post('/upload_overlay')
+async def _overlay_upload(
+        file: UploadFile = File(...),
+        camera_ID: str = Form(..., example="CAM_BF_01"),
+        timezone: str = Form("EST"),
+        db: Session = Depends(get_db),
+        credentials: HTTPBasicCredentials = Depends(security)
+):
+    logging.info("/upload_overlay " + camera_ID + " " + file.filename)
+
+    # Authenticate
+    correct_username = secrets.compare_digest(credentials.username, os.environ.get('username'))
+    correct_password = secrets.compare_digest(credentials.password, os.environ.get('password'))
+    if not (correct_username and correct_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password",
+            headers={"WWW-Authenticate": "Basic"},
+        )
+
+    # save highres version to photo_storage (will be deleted later)
+    original_pic_path = "/photo_storage/highresOverlay_" + camera_ID + ".jpg"
+    with open(original_pic_path, "wb") as myfile:
+        content = await file.read()
+        myfile.write(content)
+        myfile.close()
+
+    # Extract the DateTimeOriginal from the original image's EXIF data
+    with Image.open(original_pic_path) as img:
+        exif_bytes = img.info.get('exif')
+        exif_dict = piexif.load(exif_bytes) if exif_bytes else {}
+    datetime_bytes = exif_dict["Exif"].get(piexif.ExifIFD.DateTimeOriginal)
+    if not datetime_bytes:
+        raise ValueError("DateTimeOriginal tag not found in EXIF data.")
+    datetime_string = datetime_bytes.decode("utf-8")    # Decode bytes to string
+    # Convert the DateTimeOriginal to a timezone-aware Arrow object in UTC
+    datetime_original_arrow = arrow.get(datetime.strptime(datetime_string, "%Y:%m:%d %H:%M:%S"),
+                                        tz.gettz(timezone)).to('utc')
+    picture_label = camera_ID + "_" + datetime_original_arrow.format("YYYYMMDDHHmmss") + ".jpg"     # Label for the picture file, which includes the camera ID and the timestamp
+
+    # Create a reduced-size version of the image for blurring and serving via the web
+    try:
+        img = Image.open(original_pic_path)
+    except OSError:
+        return "Error opening image. Image is corrupt"
+    except:
+        return "Error opening image. Unknown error"
+    img.thumbnail(size=(1000, 750))
+    reduced_image_path = "/photo_storage/segmap_overlay_" + camera_ID + ".jpg"
+    img.save(reduced_image_path, exif=exif_bytes)
+    img.close()
+
+    # Remove previous timestamped photo if exists
+    previous_pic = db_functions.get_latest_photo_info(db=db, camera_ID=camera_ID)
+    try:
+        os.remove("/photo_storage/segmap_overlay_" + previous_pic.drive_filename)
+    except:
+        logging.info("File not found")
+
+
+    blurring_functions.blur_image(camera_ID.replace("CAM_", ""), reduced_image_path)
+    # Copy blurred image to filename with timestamp included
+    destination_path = os.path.join("/photo_storage", "segmap_overlay_" + picture_label)
+    try:
+        shutil.copy2(reduced_image_path, destination_path)
+    except OSError as exc:
+        logging.error("Failed to copy overlay image to %s: %s", destination_path, exc)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail="Failed to save overlay image")
 
     os.remove(original_pic_path)
 
