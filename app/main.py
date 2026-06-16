@@ -365,19 +365,6 @@ async def _overlay_upload(
         myfile.write(content)
         myfile.close()
 
-    # Extract the DateTimeOriginal from the original image's EXIF data
-    with Image.open(original_pic_path) as img:
-        exif_bytes = img.info.get('exif')
-        exif_dict = piexif.load(exif_bytes) if exif_bytes else {}
-    datetime_bytes = exif_dict["Exif"].get(piexif.ExifIFD.DateTimeOriginal)
-    if not datetime_bytes:
-        raise ValueError("DateTimeOriginal tag not found in EXIF data.")
-    datetime_string = datetime_bytes.decode("utf-8")    # Decode bytes to string
-    # Convert the DateTimeOriginal to a timezone-aware Arrow object in UTC
-    datetime_original_arrow = arrow.get(datetime.strptime(datetime_string, "%Y:%m:%d %H:%M:%S"),
-                                        tz.gettz(timezone)).to('utc')
-    picture_label = camera_ID + "_" + datetime_original_arrow.format("YYYYMMDDHHmmss") + ".jpg"     # Label for the picture file, which includes the camera ID and the timestamp
-
     # Create a reduced-size version of the image for blurring and serving via the web
     try:
         img = Image.open(original_pic_path)
@@ -387,7 +374,7 @@ async def _overlay_upload(
         return "Error opening image. Unknown error"
     img.thumbnail(size=(1000, 750))
     reduced_image_path = "/photo_storage/segmap_overlay_" + camera_ID + ".jpg"
-    img.save(reduced_image_path, exif=exif_bytes)
+    img.save(reduced_image_path)
     img.close()
 
     # Remove previous timestamped photo if exists
@@ -400,7 +387,7 @@ async def _overlay_upload(
 
     blurring_functions.blur_image(camera_ID.replace("CAM_", ""), reduced_image_path)
     # Copy blurred image to filename with timestamp included
-    destination_path = os.path.join("/photo_storage", "segmap_overlay_" + picture_label)
+    destination_path = os.path.join("/photo_storage", file.filename)
     try:
         shutil.copy2(reduced_image_path, destination_path)
     except OSError as exc:
