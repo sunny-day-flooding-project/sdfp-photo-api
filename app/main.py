@@ -9,6 +9,7 @@ import secrets
 import arrow
 import boto3
 import shutil
+import glob
 from botocore.exceptions import BotoCoreError, ClientError
 from fractions import Fraction
 
@@ -19,7 +20,7 @@ from starlette.staticfiles import StaticFiles
 from PIL import Image
 from fastapi import FastAPI, File, UploadFile, Form, Depends, HTTPException, status, Query
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
-from datetime import datetime
+from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 from dateutil import tz
 from googleapiclient.discovery import build
@@ -284,12 +285,22 @@ async def _file_upload(
     date_folder_id = get_or_create_folder(drive, camera_image_folder_id, date_label)
     upload_file_to_drive(drive, date_folder_id, picture_label, original_pic_path)    # Upload the file if it doesn't already exist
 
-    # Remove previous timestamped photo if exists
-    previous_pic = db_functions.get_latest_photo_info(db=db, camera_ID=camera_ID)
-    try:
-        os.remove("/photo_storage/" + previous_pic.drive_filename)
-    except:
-        logging.info("File not found")
+    # Delete photo images older than 30 days
+    pattern = f"/photo_storage/{camera_ID}_*.jpg"
+    photo_files = glob.glob(pattern)
+    now = datetime.now()
+    cutoff_date = now - timedelta(days=30)
+    for file_path in photo_files:
+        try:
+            filename = os.path.basename(file_path)
+            # Extract datetime from filename: {camera_ID}_{YYYYMMDDHHmmss}.jpg
+            datetime_str = filename.replace(f"{camera_ID}_", "").replace(".jpg", "")
+            file_datetime = datetime.strptime(datetime_str, "%Y%m%d%H%M%S")
+            if file_datetime < cutoff_date:
+                os.remove(file_path)
+                logging.info(f"Deleted old photo image: {filename}")
+        except Exception as e:
+            logging.debug(f"Error processing photo file: {e}")
 
     # write the info for the current photo to the database
     db_functions.write_photo_info(
@@ -377,13 +388,22 @@ async def _overlay_upload(
     img.save(reduced_image_path)
     img.close()
 
-    # Remove previous timestamped photo if exists
-    previous_pic = db_functions.get_latest_photo_info(db=db, camera_ID=camera_ID)
-    try:
-        os.remove("/photo_storage/segmap_overlay_" + previous_pic.drive_filename)
-    except:
-        logging.info("File not found")
-
+    # Delete overlay images older than 30 days
+    pattern = f"/photo_storage/segmap_overlay_{camera_ID}_*.jpg"
+    overlay_files = glob.glob(pattern)
+    now = datetime.now()
+    cutoff_date = now - timedelta(days=30)
+    for file_path in overlay_files:
+        try:
+            filename = os.path.basename(file_path)
+            # Extract datetime from filename: segmap_overlay_{camera_ID}_{YYYYMMDDHHmmss}.jpg
+            datetime_str = filename.replace(f"segmap_overlay_{camera_ID}_", "").replace(".jpg", "")
+            file_datetime = datetime.strptime(datetime_str, "%Y%m%d%H%M%S")
+            if file_datetime < cutoff_date:
+                os.remove(file_path)
+                logging.info(f"Deleted old overlay image: {filename}")
+        except Exception as e:
+            logging.debug(f"Error processing overlay file: {e}")
 
     blurring_functions.blur_image(camera_ID.replace("CAM_", ""), reduced_image_path)
     # Copy blurred image to filename with timestamp included
